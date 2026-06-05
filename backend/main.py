@@ -4,6 +4,7 @@ from routers import users
 from routers import categories
 from routers import products
 from routers import cart
+from routers import orders
 
 from database import engine
 import models
@@ -16,6 +17,7 @@ app.include_router(users.router)
 app.include_router(categories.router)
 app.include_router(products.router)
 app.include_router(cart.router)
+app.include_router(orders.router)
 
 @app.get("/")
 def home():

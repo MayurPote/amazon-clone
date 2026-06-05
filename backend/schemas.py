@@ -31,3 +31,6 @@ class AddToCart(BaseModel):
 class UpdateCartItem(BaseModel):
     cart_item_id: int
     quantity: int
+
+class CreateOrder(BaseModel):
+    user_id: int
