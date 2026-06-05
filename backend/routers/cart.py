@@ -60,6 +60,41 @@ def view_cart(
     if not cart:
         return []
 
+    cart_items = (
+        db.query(models.CartItem)
+        .filter(models.CartItem.cart_id == cart.id)
+        .all()
+    )
+
+    result = []
+
+    for item in cart_items:
+
+        product = (
+            db.query(models.Product)
+            .filter(models.Product.id == item.product_id)
+            .first()
+        )
+
+        result.append({
+            "cart_item_id": item.id,
+            "product_id": product.id,
+            "product_name": product.name,
+            "price": product.price,
+            "quantity": item.quantity
+        })
+
+    return result
+
+    cart = (
+        db.query(models.Cart)
+        .filter(models.Cart.user_id == user_id)
+        .first()
+    )
+
+    if not cart:
+        return []
+
     items = (
         db.query(models.CartItem)
         .filter(models.CartItem.cart_id == cart.id)

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 function Navbar() {
   return (
     <nav
@@ -21,9 +22,15 @@ function Navbar() {
         }}
       />
 
-      <div>
-        Cart 🛒
-      </div>
+      <Link
+  to="/cart"
+  style={{
+    color: "white",
+    textDecoration: "none"
+  }}
+>
+  Cart 🛒
+</Link>
     </nav>
   );
 }
