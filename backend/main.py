@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from routers import users
 from routers import categories
 from routers import products
+from routers import cart
 
 from database import engine
 import models
@@ -14,6 +15,7 @@ app = FastAPI()
 app.include_router(users.router)
 app.include_router(categories.router)
 app.include_router(products.router)
+app.include_router(cart.router)
 
 @app.get("/")
 def home():
