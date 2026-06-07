@@ -19,32 +19,51 @@ function Cart() {
   };
 
   const removeItem = async (itemId) => {
-  try {
-    await api.delete(`/cart/remove/${itemId}`);
+    try {
+      await api.delete(`/cart/remove/${itemId}`);
+      fetchCart();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-    fetchCart();
+  const updateQuantity = async (itemId, quantity) => {
+    try {
+      if (quantity < 1) {
+        return;
+      }
 
-  } catch (error) {
-    console.error(error);
-  }
-};
-const total = cartItems.reduce(
-  (sum, item) => sum + item.price * item.quantity,
-  0
-);
+      await api.put("/cart/update", {
+        cart_item_id: itemId,
+        quantity: quantity
+      });
+
+      fetchCart();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const total = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
   return (
     <>
       <Navbar />
 
       <div style={{ padding: "20px" }}>
         <h1>My Cart</h1>
+
         <h2>Total: ₹ {total}</h2>
+
         {cartItems.length === 0 ? (
           <p>Cart is empty</p>
         ) : (
           cartItems.map((item) => (
             <div
-              key={item.id}
+              key={item.cart_item_id}
               style={{
                 border: "1px solid lightgray",
                 padding: "15px",
@@ -53,14 +72,46 @@ const total = cartItems.reduce(
             >
               <h3>{item.product_name}</h3>
 
-<p>Price: ₹ {item.price}</p>
+              <p>Price: ₹ {item.price}</p>
 
-<p>Quantity: {item.quantity}</p>
-<button
-  onClick={() => removeItem(item.cart_item_id)}
->
-  Remove
-</button>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  marginBottom: "10px"
+                }}
+              >
+                <button
+                  onClick={() =>
+                    updateQuantity(
+                      item.cart_item_id,
+                      item.quantity - 1
+                    )
+                  }
+                >
+                  -
+                </button>
+
+                <span>{item.quantity}</span>
+
+                <button
+                  onClick={() =>
+                    updateQuantity(
+                      item.cart_item_id,
+                      item.quantity + 1
+                    )
+                  }
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                onClick={() => removeItem(item.cart_item_id)}
+              >
+                Remove
+              </button>
             </div>
           ))
         )}

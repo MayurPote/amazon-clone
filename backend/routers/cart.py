@@ -11,6 +11,7 @@ router = APIRouter(
     tags=["Cart"]
 )
 
+
 @router.post("/add")
 def add_to_cart(
     data: schemas.AddToCart,
@@ -44,6 +45,7 @@ def add_to_cart(
     return {
         "message": "Product added to cart"
     }
+
 
 @router.get("/{user_id}")
 def view_cart(
@@ -86,22 +88,6 @@ def view_cart(
 
     return result
 
-    cart = (
-        db.query(models.Cart)
-        .filter(models.Cart.user_id == user_id)
-        .first()
-    )
-
-    if not cart:
-        return []
-
-    items = (
-        db.query(models.CartItem)
-        .filter(models.CartItem.cart_id == cart.id)
-        .all()
-    )
-
-    return items
 
 @router.put("/update")
 def update_cart_item(
@@ -111,9 +97,7 @@ def update_cart_item(
 
     item = (
         db.query(models.CartItem)
-        .filter(
-            models.CartItem.id == data.cart_item_id
-        )
+        .filter(models.CartItem.id == data.cart_item_id)
         .first()
     )
 
@@ -130,6 +114,7 @@ def update_cart_item(
     return {
         "message": "Quantity updated"
     }
+
 
 @router.delete("/remove/{item_id}")
 def remove_item(

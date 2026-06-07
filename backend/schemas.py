@@ -34,3 +34,7 @@ class UpdateCartItem(BaseModel):
 
 class CreateOrder(BaseModel):
     user_id: int
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str

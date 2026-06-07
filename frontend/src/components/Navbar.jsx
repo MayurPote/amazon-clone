@@ -1,37 +1,75 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
 function Navbar() {
+  const navigate = useNavigate();
+
+  const token = localStorage.getItem("token");
+
+  const logout = () => {
+    localStorage.removeItem("token");
+
+    alert("Logged Out Successfully");
+
+    navigate("/login");
+  };
+
   return (
-    <nav
+    <div
       style={{
-        background: "#131921",
-        color: "white",
+        backgroundColor: "#232f3e",
         padding: "15px",
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
+        gap: "20px"
       }}
     >
-      <h2>Amazon Clone</h2>
-
-      <input
-        type="text"
-        placeholder="Search Amazon"
+      <Link
+        to="/"
         style={{
-          width: "400px",
-          padding: "8px"
+          color: "white",
+          textDecoration: "none"
         }}
-      />
+      >
+        Home
+      </Link>
 
       <Link
-  to="/cart"
-  style={{
-    color: "white",
-    textDecoration: "none"
-  }}
->
-  Cart 🛒
-</Link>
-    </nav>
+        to="/cart"
+        style={{
+          color: "white",
+          textDecoration: "none"
+        }}
+      >
+        Cart
+      </Link>
+
+      {!token ? (
+        <>
+          <Link
+            to="/login"
+            style={{
+              color: "white",
+              textDecoration: "none"
+            }}
+          >
+            Login
+          </Link>
+
+          <Link
+            to="/register"
+            style={{
+              color: "white",
+              textDecoration: "none"
+            }}
+          >
+            Register
+          </Link>
+        </>
+      ) : (
+        <button onClick={logout}>
+          Logout
+        </button>
+      )}
+    </div>
   );
 }
 
