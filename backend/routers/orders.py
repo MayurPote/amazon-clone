@@ -20,9 +20,7 @@ def place_order(
 
     cart = (
         db.query(models.Cart)
-        .filter(
-            models.Cart.user_id == data.user_id
-        )
+        .filter(models.Cart.user_id == data.user_id)
         .first()
     )
 
@@ -33,9 +31,7 @@ def place_order(
 
     cart_items = (
         db.query(models.CartItem)
-        .filter(
-            models.CartItem.cart_id == cart.id
-        )
+        .filter(models.CartItem.cart_id == cart.id)
         .all()
     )
 
@@ -45,9 +41,7 @@ def place_order(
 
         product = (
             db.query(models.Product)
-            .filter(
-                models.Product.id == item.product_id
-            )
+            .filter(models.Product.id == item.product_id)
             .first()
         )
 
@@ -65,7 +59,27 @@ def place_order(
     db.commit()
     db.refresh(order)
 
-    # Clear cart after order placement
+    # Save products into order_items
+    for item in cart_items:
+
+        product = (
+            db.query(models.Product)
+            .filter(models.Product.id == item.product_id)
+            .first()
+        )
+
+        order_item = models.OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            quantity=item.quantity,
+            price=product.price
+        )
+
+        db.add(order_item)
+
+    db.commit()
+
+    # Clear cart
     for item in cart_items:
         db.delete(item)
 
@@ -83,10 +97,43 @@ def get_orders(
     db: Session = Depends(get_db)
 ):
 
-    return (
+    orders = (
         db.query(models.Order)
-        .filter(
-            models.Order.user_id == user_id
-        )
+        .filter(models.Order.user_id == user_id)
         .all()
     )
+
+    result = []
+
+    for order in orders:
+
+        order_items = (
+            db.query(models.OrderItem)
+            .filter(models.OrderItem.order_id == order.id)
+            .all()
+        )
+
+        products = []
+
+        for item in order_items:
+
+            product = (
+                db.query(models.Product)
+                .filter(models.Product.id == item.product_id)
+                .first()
+            )
+
+            products.append({
+                "name": product.name,
+                "price": item.price,
+                "quantity": item.quantity
+            })
+
+        result.append({
+            "id": order.id,
+            "total_amount": order.total_amount,
+            "status": order.status,
+            "products": products
+        })
+
+    return result
