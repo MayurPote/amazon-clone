@@ -35,6 +35,32 @@ def create_product(
 def get_products(
     db: Session = Depends(get_db)
 ):
-    return db.query(
+
+    products = db.query(
         models.Product
     ).all()
+
+    result = []
+
+    for product in products:
+
+        category = (
+            db.query(models.Category)
+            .filter(
+                models.Category.id ==
+                product.category_id
+            )
+            .first()
+        )
+
+        result.append({
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_id": product.category_id,
+            "category_name": category.name
+        })
+
+    return result

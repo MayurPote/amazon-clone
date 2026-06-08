@@ -6,6 +6,7 @@ from routers import products
 from routers import cart
 from routers import orders
 from fastapi.middleware.cors import CORSMiddleware
+from routers import orders
 
 from database import engine
 import models

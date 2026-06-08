@@ -48,7 +48,32 @@ function Cart() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+const checkout = async () => {
+  try {
 
+    await api.post(
+      "/orders/place",
+      {
+        user_id: 1
+      }
+    );
+
+    alert(
+      "Order Placed Successfully"
+    );
+
+    window.location.href =
+      "/orders";
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "Checkout Failed"
+    );
+  }
+};
   return (
     <>
       <Navbar />
@@ -57,6 +82,16 @@ function Cart() {
         <h1>My Cart</h1>
 
         <h2>Total: ₹ {total}</h2>
+
+        <button
+  onClick={checkout}
+  style={{
+    padding: "10px",
+    marginBottom: "20px"
+  }}
+>
+  Proceed To Checkout
+</button>
 
         {cartItems.length === 0 ? (
           <p>Cart is empty</p>

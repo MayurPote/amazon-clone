@@ -6,6 +6,8 @@ import api from "../services/api";
 function Home() {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] =
+    useState("All");
 
   useEffect(() => {
     fetchProducts();
@@ -14,7 +16,9 @@ function Home() {
   const fetchProducts = async () => {
     try {
       const response = await api.get("/products/");
+
       setProducts(response.data);
+
     } catch (error) {
       console.error(error);
     }
@@ -22,6 +26,7 @@ function Home() {
 
   const addToCart = async (productId) => {
     try {
+
       await api.post("/cart/add", {
         user_id: 1,
         product_id: productId,
@@ -29,16 +34,44 @@ function Home() {
       });
 
       alert("Product added to cart");
+
     } catch (error) {
+
       console.error(error);
+
       alert("Failed to add product");
     }
   };
 
-  const filteredProducts = products.filter((product) =>
-    product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+  const categories = [
+    "All",
+    ...new Set(
+      products.map(
+        (product) => product.category_name
+      )
+    )
+  ];
+
+  const filteredProducts = products.filter(
+    (product) => {
+
+      const matchesSearch =
+        product.name
+          .toLowerCase()
+          .includes(
+            searchTerm.toLowerCase()
+          );
+
+      const matchesCategory =
+        selectedCategory === "All" ||
+        product.category_name ===
+          selectedCategory;
+
+      return (
+        matchesSearch &&
+        matchesCategory
+      );
+    }
   );
 
   return (
@@ -48,19 +81,51 @@ function Home() {
       <div style={{ padding: "20px" }}>
         <h1>Today's Deals</h1>
 
-        <input
-          type="text"
-          placeholder="Search Products..."
-          value={searchTerm}
-          onChange={(e) =>
-            setSearchTerm(e.target.value)
-          }
+        <div
           style={{
-            width: "300px",
-            padding: "10px",
+            display: "flex",
+            gap: "10px",
             marginBottom: "20px"
           }}
-        />
+        >
+          <input
+            type="text"
+            placeholder="Search Products..."
+            value={searchTerm}
+            onChange={(e) =>
+              setSearchTerm(
+                e.target.value
+              )
+            }
+            style={{
+              width: "300px",
+              padding: "10px"
+            }}
+          />
+
+          <select
+            value={selectedCategory}
+            onChange={(e) =>
+              setSelectedCategory(
+                e.target.value
+              )
+            }
+            style={{
+              padding: "10px"
+            }}
+          >
+            {categories.map(
+              (category) => (
+                <option
+                  key={category}
+                  value={category}
+                >
+                  {category}
+                </option>
+              )
+            )}
+          </select>
+        </div>
 
         <div
           style={{
@@ -69,13 +134,15 @@ function Home() {
             gap: "20px"
           }}
         >
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              addToCart={addToCart}
-            />
-          ))}
+          {filteredProducts.map(
+            (product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                addToCart={addToCart}
+              />
+            )
+          )}
         </div>
       </div>
     </>

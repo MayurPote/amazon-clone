@@ -42,6 +42,16 @@ function Navbar() {
         Cart
       </Link>
 
+      <Link
+  to="/orders"
+  style={{
+    color: "white",
+    textDecoration: "none"
+  }}
+>
+  Orders
+</Link>
+
       {!token ? (
         <>
           <Link

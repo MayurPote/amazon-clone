@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import models
@@ -11,74 +11,61 @@ router = APIRouter(
     tags=["Orders"]
 )
 
+
 @router.post("/place")
 def place_order(
-    data: schemas.CreateOrder,
+    data: schemas.OrderCreate,
     db: Session = Depends(get_db)
 ):
+
     cart = (
         db.query(models.Cart)
-        .filter(models.Cart.user_id == data.user_id)
+        .filter(
+            models.Cart.user_id == data.user_id
+        )
         .first()
     )
 
     if not cart:
-        raise HTTPException(
-            status_code=404,
-            detail="Cart not found"
-        )
+        return {
+            "message": "Cart is empty"
+        }
 
     cart_items = (
         db.query(models.CartItem)
-        .filter(models.CartItem.cart_id == cart.id)
+        .filter(
+            models.CartItem.cart_id == cart.id
+        )
         .all()
     )
-
-    if not cart_items:
-        raise HTTPException(
-            status_code=400,
-            detail="Cart is empty"
-        )
 
     total = 0
 
     for item in cart_items:
+
         product = (
             db.query(models.Product)
-            .filter(models.Product.id == item.product_id)
+            .filter(
+                models.Product.id == item.product_id
+            )
             .first()
         )
 
-        total += product.price * item.quantity
+        total += (
+            product.price * item.quantity
+        )
 
     order = models.Order(
         user_id=data.user_id,
-        total_amount=total
+        total_amount=total,
+        status="Placed"
     )
 
     db.add(order)
     db.commit()
     db.refresh(order)
 
-    for item in cart_items:
-
-        product = (
-            db.query(models.Product)
-            .filter(models.Product.id == item.product_id)
-            .first()
-        )
-
-        order_item = models.OrderItem(
-            order_id=order.id,
-            product_id=product.id,
-            quantity=item.quantity,
-            price=product.price
-        )
-
-        db.add(order_item)
-
-    db.commit()
-
+    # Clear cart after order placement
     for item in cart_items:
         db.delete(item)
 
@@ -86,17 +73,20 @@ def place_order(
 
     return {
         "message": "Order placed successfully",
-        "order_id": order.id,
-        "total_amount": total
+        "order_id": order.id
     }
+
 
 @router.get("/{user_id}")
 def get_orders(
     user_id: int,
     db: Session = Depends(get_db)
 ):
+
     return (
         db.query(models.Order)
-        .filter(models.Order.user_id == user_id)
+        .filter(
+            models.Order.user_id == user_id
+        )
         .all()
     )
