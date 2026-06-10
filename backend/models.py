@@ -26,6 +26,7 @@ class Product(Base):
     description = Column(String)
     price = Column(Float)
     stock = Column(Integer)
+    image_url = Column(String)
 
     category_id = Column(
         Integer,

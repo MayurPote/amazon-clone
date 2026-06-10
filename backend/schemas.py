@@ -21,6 +21,7 @@ class ProductCreate(BaseModel):
     price: float
     stock: int
     category_id: int
+    image_url: str
 
 class AddToCart(BaseModel):
     user_id: int

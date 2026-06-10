@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import ProductCard from "../components/ProductCard";
 import api from "../services/api";
+import { getUserId } from "../services/auth";
 
 function Home() {
   const [products, setProducts] = useState([]);
@@ -28,7 +29,7 @@ function Home() {
     try {
 
       await api.post("/cart/add", {
-        user_id: 1,
+        user_id: getUserId(),
         product_id: productId,
         quantity: 1
       });
@@ -77,6 +78,16 @@ function Home() {
   return (
     <>
       <Navbar />
+      <div
+  style={{
+    height: "300px",
+    backgroundImage:
+      "url('https://images.unsplash.com/photo-1542291026-7eec264c27ff')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    marginBottom: "20px"
+  }}
+></div>
 
       <div style={{ padding: "20px" }}>
         <h1>Today's Deals</h1>
@@ -128,12 +139,14 @@ function Home() {
         </div>
 
         <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "20px"
-          }}
-        >
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fill,minmax(250px,1fr))",
+    gap: "20px",
+    marginTop: "20px"
+  }}
+>
           {filteredProducts.map(
             (product) => (
               <ProductCard

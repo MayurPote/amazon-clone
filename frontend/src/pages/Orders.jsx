@@ -1,27 +1,23 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
+import { getUserId } from "../services/auth";
 
 function Orders() {
-
-  const [orders, setOrders] =
-    useState([]);
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
-
     try {
-
-      const response =
-        await api.get("/orders/1");
+      const response = await api.get(
+        `/orders/${getUserId()}`
+      );
 
       setOrders(response.data);
-
     } catch (error) {
-
       console.error(error);
     }
   };
@@ -30,62 +26,63 @@ function Orders() {
     <>
       <Navbar />
 
-      <div style={{ padding: "20px" }}>
-        <h1>My Orders</h1>
+      <div
+        style={{
+          padding: "30px",
+          maxWidth: "1200px",
+          margin: "auto"
+        }}
+      >
+        <h1>📦 My Orders</h1>
 
-        {orders.map((order) => (
-
+        {orders.length === 0 ? (
           <div
-            key={order.id}
             style={{
-              border:
-                "1px solid lightgray",
-              padding: "15px",
-              marginBottom: "20px"
+              background: "white",
+              padding: "30px",
+              borderRadius: "10px",
+              boxShadow:
+                "0 2px 8px rgba(0,0,0,0.1)"
             }}
           >
-
-            <h3>
-              Order #{order.id}
-            </h3>
-
-            <p>
-              Status:
-              {" "}
-              {order.status}
-            </p>
-
-            <p>
-              Total:
-              ₹ {order.total_amount}
-            </p>
-
-            <hr />
-
-            {order.products.map(
-              (product, index) => (
-                <div key={index}>
-                  <p>
-                    {product.name}
-                  </p>
-
-                  <p>
-                    Qty:
-                    {" "}
-                    {product.quantity}
-                  </p>
-
-                  <p>
-                    ₹ {product.price}
-                  </p>
-
-                  <hr />
-                </div>
-              )
-            )}
-
+            <h2>No Orders Found</h2>
           </div>
-        ))}
+        ) : (
+          orders.map((order) => (
+            <div
+              key={order.id}
+              style={{
+                background: "white",
+                padding: "20px",
+                marginBottom: "15px",
+                borderRadius: "10px",
+                boxShadow:
+                  "0 2px 8px rgba(0,0,0,0.1)"
+              }}
+            >
+              <h2>
+                Order #{order.id}
+              </h2>
+
+              <p>
+                <strong>Status:</strong>{" "}
+                <span
+                  style={{
+                    color: "green",
+                    fontWeight: "bold"
+                  }}
+                >
+                  {order.status}
+                </span>
+              </p>
+
+              <p>
+                <strong>Total:</strong> ₹
+                {order.total_amount.toLocaleString()}
+              </p>
+            </div>
+          ))
+        )}
       </div>
     </>
   );

@@ -16,69 +16,132 @@ function Navbar() {
   return (
     <div
       style={{
-        backgroundColor: "#232f3e",
-        padding: "15px",
+        backgroundColor: "#131921",
+        height: "60px",
         display: "flex",
-        gap: "20px"
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 20px",
+        color: "white"
       }}
     >
-      <Link
-        to="/"
+      <div
         style={{
-          color: "white",
-          textDecoration: "none"
+          display: "flex",
+          alignItems: "center",
+          gap: "25px"
         }}
       >
-        Home
-      </Link>
+        <h2
+          style={{
+            margin: 0,
+            color: "#ff9900"
+          }}
+        >
+          Amazon Clone
+        </h2>
 
-      <Link
-        to="/cart"
+        <Link
+          to="/"
+          style={{
+            color: "white",
+            textDecoration: "none",
+            fontWeight: "bold"
+          }}
+        >
+          Home
+        </Link>
+
+        <Link
+          to="/cart"
+          style={{
+            color: "white",
+            textDecoration: "none",
+            fontWeight: "bold"
+          }}
+        >
+          Cart
+        </Link>
+
+        <Link
+          to="/orders"
+          style={{
+            color: "white",
+            textDecoration: "none",
+            fontWeight: "bold"
+          }}
+        >
+          Orders
+        </Link>
+      </div>
+
+      <div
         style={{
-          color: "white",
-          textDecoration: "none"
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          padding: "0 30px"
         }}
       >
-        Cart
-      </Link>
+        <input
+          type="text"
+          placeholder="Search Amazon"
+          style={{
+            width: "60%",
+            padding: "10px",
+            border: "none",
+            borderRadius: "4px"
+          }}
+        />
+      </div>
 
-      <Link
-  to="/orders"
-  style={{
-    color: "white",
-    textDecoration: "none"
-  }}
->
-  Orders
-</Link>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "15px"
+        }}
+      >
+        {!token ? (
+          <>
+            <Link
+              to="/login"
+              style={{
+                color: "white",
+                textDecoration: "none",
+                fontWeight: "bold"
+              }}
+            >
+              Login
+            </Link>
 
-      {!token ? (
-        <>
-          <Link
-            to="/login"
+            <Link
+              to="/register"
+              style={{
+                color: "white",
+                textDecoration: "none",
+                fontWeight: "bold"
+              }}
+            >
+              Register
+            </Link>
+          </>
+        ) : (
+          <button
+            onClick={logout}
             style={{
-              color: "white",
-              textDecoration: "none"
+              backgroundColor: "#ff9900",
+              border: "none",
+              padding: "8px 15px",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontWeight: "bold"
             }}
           >
-            Login
-          </Link>
-
-          <Link
-            to="/register"
-            style={{
-              color: "white",
-              textDecoration: "none"
-            }}
-          >
-            Register
-          </Link>
-        </>
-      ) : (
-        <button onClick={logout}>
-          Logout
-        </button>
-      )}
+            Logout
+          </button>
+        )}
+      </div>
     </div>
   );
 }
