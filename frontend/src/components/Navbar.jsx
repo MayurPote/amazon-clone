@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import api from "../services/api";
 import { getUserId } from "../services/auth";
 
@@ -21,13 +21,42 @@ function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCat, setSearchCat] = useState("All");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef(null);
+  const debounceRef = useRef(null);
 
-  const doSearch = () => {
+  const doSearch = (q = searchQuery) => {
+    setSuggestions([]);
+    setShowSuggestions(false);
     const params = new URLSearchParams();
-    if (searchQuery.trim()) params.set("search", searchQuery.trim());
+    if (q.trim()) params.set("search", q.trim());
     if (searchCat && searchCat !== "All") params.set("category", searchCat);
     navigate(`/?${params.toString()}`);
   };
+
+  const onSearchChange = useCallback((val) => {
+    setSearchQuery(val);
+    clearTimeout(debounceRef.current);
+    if (val.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/products/?search=${encodeURIComponent(val.trim())}`);
+        setSuggestions(res.data.slice(0, 8));
+        setShowSuggestions(true);
+      } catch {}
+    }, 220);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   useEffect(() => {
     if (token) fetchCartCount();
@@ -85,43 +114,73 @@ function Navbar() {
         </div>
 
         {/* Search bar */}
-        <div style={{ flex: 1, display: "flex", height: "42px", borderRadius: "8px", overflow: "hidden", boxShadow: "0 0 0 3px #FF9900" }}>
-          <select
-            value={searchCat}
-            onChange={e => setSearchCat(e.target.value)}
-            style={{ padding: "0 8px", background: "#f0f2f2", border: "none", fontSize: "12px", color: "#333", cursor: "pointer", borderRight: "1px solid #cdcdcd", outline: "none", minWidth: "90px", fontFamily: "inherit" }}
-          >
-            <option value="All">All</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Fashion">Fashion</option>
-            <option value="Home & Kitchen">Home</option>
-            <option value="Sports">Sports</option>
-            <option value="Books">Books</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Search products, brands and more…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") doSearch(); }}
-            style={{ flex: 1, padding: "0 14px", border: "none", fontSize: "14px", outline: "none", color: "#0F1111", fontFamily: "inherit" }}
-          />
-          <button
-            className="nb-search-btn"
-            onClick={doSearch}
-            style={{ background: "#FF9900", border: "none", padding: "0 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s", flexShrink: 0 }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F1111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-            </svg>
-          </button>
+        <div ref={searchRef} style={{ flex: 1, position: "relative" }}>
+          <div style={{ display: "flex", height: "42px", borderRadius: "8px", overflow: "hidden", boxShadow: "0 0 0 3px #FF9900" }}>
+            <select
+              value={searchCat}
+              onChange={e => setSearchCat(e.target.value)}
+              style={{ padding: "0 8px", background: "#f0f2f2", border: "none", fontSize: "12px", color: "#333", cursor: "pointer", borderRight: "1px solid #cdcdcd", outline: "none", minWidth: "90px", fontFamily: "inherit" }}
+            >
+              <option value="All">All</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Home & Kitchen">Home</option>
+              <option value="Sports">Sports</option>
+              <option value="Books">Books</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Search products, brands and more…"
+              value={searchQuery}
+              onChange={e => onSearchChange(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") doSearch(); if (e.key === "Escape") setShowSuggestions(false); }}
+              onFocus={() => { if (suggestions.length) setShowSuggestions(true); }}
+              style={{ flex: 1, padding: "0 14px", border: "none", fontSize: "14px", outline: "none", color: "#0F1111", fontFamily: "inherit" }}
+            />
+            <button
+              className="nb-search-btn"
+              onClick={() => doSearch()}
+              style={{ background: "#FF9900", border: "none", padding: "0 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s", flexShrink: 0 }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F1111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Autocomplete dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "46px", left: 0, right: 0, background: "white", border: "1px solid #ccc", borderRadius: "0 0 8px 8px", boxShadow: "0 8px 24px rgba(0,0,0,0.18)", zIndex: 9999, overflow: "hidden" }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={s.id}
+                  onClick={() => { setSearchQuery(s.name); doSearch(s.name); }}
+                  style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", cursor: "pointer", borderBottom: i < suggestions.length - 1 ? "1px solid #f0f2f2" : "none", transition: "background 0.1s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#f0f2f2"}
+                  onMouseLeave={e => e.currentTarget.style.background = "white"}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  <span style={{ fontSize: "14px", color: "#0F1111", flex: 1 }}>{s.name}</span>
+                  <span style={{ fontSize: "12px", color: "#565959" }}>₹{s.price?.toLocaleString("en-IN")}</span>
+                </div>
+              ))}
+              <div style={{ padding: "10px 14px", background: "#f7f8f9", borderTop: "1px solid #e0e0e0" }}>
+                <span
+                  onClick={() => doSearch()}
+                  style={{ fontSize: "13px", color: "#007185", cursor: "pointer", fontWeight: "600" }}
+                >
+                  See all results for "{searchQuery}" →
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Account */}
         <div
           className="nb-top-block"
-          style={{ flexShrink: 0 }}
-          onClick={() => !token && navigate("/login")}
+          style={{ flexShrink: 0, cursor: "pointer" }}
+          onClick={() => navigate(token ? "/account" : "/login")}
         >
           <span className="sub">{token ? "Hello, User" : "Hello, sign in"}</span>
           <span className="main">Account &amp; Lists ▾</span>

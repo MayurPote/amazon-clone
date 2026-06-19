@@ -60,6 +60,8 @@ function Home() {
   const [timeLeft, setTimeLeft] = useState(3600 * 5);
   const [trendingProducts, setTrendingProducts] = useState([]);
   const [heroSlide, setHeroSlide] = useState(0);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const recentRef = useRef(null);
 
   const trendingRef = useRef(null);
 
@@ -94,6 +96,11 @@ function Home() {
       api.get("/products/").then(r => setProducts(r.data)).catch(console.error),
       api.get("/products/trending").then(r => setTrendingProducts(r.data)).catch(console.error),
     ]);
+    // Load recently viewed from localStorage
+    try {
+      const rv = JSON.parse(localStorage.getItem("recently_viewed") || "[]");
+      setRecentlyViewed(rv);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -372,6 +379,55 @@ function Home() {
               </div>
             </div>
           </div>
+
+          {/* ── Recently Viewed ── */}
+          {recentlyViewed.length > 0 && (
+            <div style={{ paddingTop: "20px" }}>
+              <div style={{ background: "white", borderRadius: "10px", padding: "20px 24px 26px", boxShadow: "0 1px 5px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "14px", borderBottom: "3px solid #232f3e", marginBottom: "20px" }}>
+                  <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "800", color: "#0F1111" }}>Recently Viewed</h2>
+                  <button
+                    onClick={() => { localStorage.removeItem("recently_viewed"); setRecentlyViewed([]); }}
+                    style={{ background: "none", border: "none", color: "#007185", fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Clear history
+                  </button>
+                </div>
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={() => recentRef.current?.scrollBy({ left: -260, behavior: "smooth" })}
+                    style={{ position: "absolute", left: "-14px", top: "50%", transform: "translateY(-50%)", zIndex: 10, width: "36px", height: "36px", borderRadius: "50%", background: "white", border: "1px solid #d5d9d9", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", cursor: "pointer", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center", color: "#0F1111", padding: 0 }}
+                  >‹</button>
+                  <div ref={recentRef} style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "4px", msOverflowStyle: "none", scrollbarWidth: "none" }}>
+                    {recentlyViewed.map(product => (
+                      <div
+                        key={product.id}
+                        onClick={() => navigate(`/product/${product.id}`)}
+                        style={{ flexShrink: 0, width: "150px", cursor: "pointer", padding: "12px", border: "1px solid #e8e8e8", borderRadius: "8px", transition: "box-shadow 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.12)"}
+                        onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+                      >
+                        <div style={{ height: "120px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "8px" }}>
+                          <img src={product.image_url} alt={product.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", mixBlendMode: "multiply" }} />
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#0F1111", lineHeight: "1.4", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: "4px" }}>
+                          {product.name}
+                        </div>
+                        <div style={{ fontSize: "13px", fontWeight: "700", color: "#0F1111" }}>₹{product.price?.toLocaleString("en-IN")}</div>
+                        {product.discount_percent > 0 && (
+                          <div style={{ fontSize: "11px", color: "#CC0C39", fontWeight: "700" }}>-{product.discount_percent}% off</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => recentRef.current?.scrollBy({ left: 260, behavior: "smooth" })}
+                    style={{ position: "absolute", right: "-14px", top: "50%", transform: "translateY(-50%)", zIndex: 10, width: "36px", height: "36px", borderRadius: "50%", background: "white", border: "1px solid #d5d9d9", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", cursor: "pointer", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center", color: "#0F1111", padding: 0 }}
+                  >›</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Today's Deals ── */}
           <div id="deals-section" style={{ paddingTop: "32px", paddingBottom: "48px" }}>

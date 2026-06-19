@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
 import { getUserId } from "../services/auth";
+import { useToast } from "../context/ToastContext";
 
 function Stars({ rating = 4.5, reviews = 0 }) {
   const pct = Math.max(0, Math.min(100, (rating / 5) * 100));
@@ -20,6 +21,7 @@ function Stars({ rating = 4.5, reviews = 0 }) {
 function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { show } = useToast();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -33,6 +35,16 @@ function ProductDetails() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
+  // Pincode checker
+  const [pincode, setPincode] = useState("");
+  const [pincodeResult, setPincodeResult] = useState(null);
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+
+  // Image zoom
+  const [zoom, setZoom] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const imageBoxRef = useRef(null);
+
   useEffect(() => {
     setProduct(null);
     setRelatedProducts([]);
@@ -42,6 +54,8 @@ function ProductDetails() {
     setReviews([]);
     setReviewSubmitted(false);
     setShowReviewForm(false);
+    setPincode("");
+    setPincodeResult(null);
     fetchProduct();
     fetchRelated();
     fetchReviews();
@@ -52,6 +66,14 @@ function ProductDetails() {
     try {
       const res = await api.get(`/products/${id}`);
       setProduct(res.data);
+      // Save to recently viewed
+      try {
+        const key = "recently_viewed";
+        const prev = JSON.parse(localStorage.getItem(key) || "[]");
+        const filtered = prev.filter(p => p.id !== res.data.id);
+        const updated = [res.data, ...filtered].slice(0, 8);
+        localStorage.setItem(key, JSON.stringify(updated));
+      } catch {}
     } catch (e) { console.error(e); }
   };
 
@@ -90,16 +112,34 @@ function ProductDetails() {
     } catch (e) { console.error(e); }
   };
 
+  const checkPincode = async () => {
+    if (pincode.length !== 6) { setPincodeResult({ ok: false, msg: "Enter a valid 6-digit pincode" }); return; }
+    setPincodeChecking(true);
+    setPincodeResult(null);
+    await new Promise(r => setTimeout(r, 600));
+    const valid = /^[1-9][0-9]{5}$/.test(pincode);
+    const days = Math.floor(Math.random() * 3) + 2;
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    const label = date.toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
+    setPincodeResult(valid ? { ok: true, msg: `Delivery by ${label} · FREE delivery` } : { ok: false, msg: "Delivery not available at this pincode" });
+    setPincodeChecking(false);
+  };
+
   const addToCart = async () => {
     if (cartState !== "idle") return;
+    const userId = getUserId();
+    if (!userId) { navigate("/login"); return; }
     setCartState("adding");
     try {
-      await api.post("/cart/add", { user_id: getUserId(), product_id: product.id, quantity });
+      await api.post("/cart/add", { user_id: userId, product_id: product.id, quantity });
       setCartState("added");
+      show(`${product.name.substring(0, 40)}… added to cart`, "cart");
       setTimeout(() => setCartState("idle"), 2500);
     } catch (e) {
       console.error(e);
       setCartState("idle");
+      show("Failed to add to cart", "error");
     }
   };
 
@@ -123,8 +163,12 @@ function ProductDetails() {
     try {
       await api.post("/wishlist/add", { user_id: userId, product_id: product.id });
       setWishlistAdded(true);
+      show("Added to Wish List", "success");
       setTimeout(() => setWishlistAdded(false), 3000);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      show("Failed to add to Wish List", "error");
+    }
   };
 
   if (!product) {
@@ -198,19 +242,33 @@ function ProductDetails() {
                 </div>
               </div>
 
-              {/* Large main image */}
-              <div style={{ width: "340px", height: "340px", background: "white", borderRadius: "8px", border: "1px solid #e8e8e8", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative", overflow: "hidden" }}>
+              {/* Large main image with zoom */}
+              <div
+                ref={imageBoxRef}
+                style={{ width: "340px", height: "340px", background: "white", borderRadius: "8px", border: "1px solid #e8e8e8", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative", overflow: "hidden", cursor: zoom ? "zoom-in" : "crosshair" }}
+                onMouseEnter={() => setZoom(true)}
+                onMouseLeave={() => setZoom(false)}
+                onMouseMove={e => {
+                  const rect = imageBoxRef.current.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  setZoomPos({ x, y });
+                }}
+              >
                 {discount >= 15 && (
-                  <div style={{ position: "absolute", top: "12px", left: "12px", background: "#CC0C39", color: "white", fontSize: "13px", fontWeight: "800", padding: "4px 10px", borderRadius: "4px" }}>
+                  <div style={{ position: "absolute", top: "12px", left: "12px", background: "#CC0C39", color: "white", fontSize: "13px", fontWeight: "800", padding: "4px 10px", borderRadius: "4px", zIndex: 2 }}>
                     Limited time deal
+                  </div>
+                )}
+                {zoom && (
+                  <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}>
+                    <div style={{ width: "100%", height: "100%", backgroundImage: `url(${product.image_url})`, backgroundSize: "220%", backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`, backgroundRepeat: "no-repeat", mixBlendMode: "multiply" }} />
                   </div>
                 )}
                 <img
                   src={product.image_url}
                   alt={product.name}
-                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", mixBlendMode: "multiply", transition: "transform 0.3s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", mixBlendMode: "multiply", transition: "opacity 0.15s", opacity: zoom ? 0 : 1 }}
                 />
               </div>
 
@@ -342,6 +400,33 @@ function ProductDetails() {
                   FREE Delivery <span style={{ color: "#007185" }}>{deliveryDate}</span>
                 </div>
                 <div style={{ color: "#565959" }}>Order within <span style={{ color: "#CC0C39", fontWeight: "700" }}>11 hrs 52 mins</span></div>
+              </div>
+
+              {/* Pincode delivery checker */}
+              <div style={{ marginBottom: "14px", borderTop: "1px solid #f0f2f2", paddingTop: "12px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: "#0F1111", marginBottom: "6px" }}>Deliver to</div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <input
+                    type="text"
+                    placeholder="Enter pincode"
+                    value={pincode}
+                    maxLength={6}
+                    onChange={e => { setPincode(e.target.value.replace(/\D/g, "")); setPincodeResult(null); }}
+                    onKeyDown={e => e.key === "Enter" && checkPincode()}
+                    style={{ flex: 1, padding: "7px 10px", border: "1px solid #d5d9d9", borderRadius: "4px", fontSize: "13px", fontFamily: "inherit", outline: "none" }}
+                  />
+                  <button
+                    onClick={checkPincode}
+                    style={{ padding: "7px 14px", background: "white", border: "1px solid #007185", borderRadius: "4px", color: "#007185", fontSize: "13px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    {pincodeChecking ? "…" : "Check"}
+                  </button>
+                </div>
+                {pincodeResult && (
+                  <div style={{ marginTop: "6px", fontSize: "12px", fontWeight: "600", color: pincodeResult.ok ? "#007600" : "#CC0C39" }}>
+                    {pincodeResult.ok ? "✓ " : "✕ "}{pincodeResult.msg}
+                  </div>
+                )}
               </div>
 
               {/* Stock */}

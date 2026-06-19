@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
 import { getUserId } from "../services/auth";
+import { useToast } from "../context/ToastContext";
 
 function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { show } = useToast();
 
   useEffect(() => { fetchCart(); }, []);
 
@@ -22,6 +24,7 @@ function Cart() {
   const removeItem = async (itemId) => {
     await api.delete(`/cart/remove/${itemId}`).catch(console.error);
     setCartItems(prev => prev.filter(i => i.cart_item_id !== itemId));
+    show("Item removed from cart", "info");
   };
 
   const updateQuantity = async (itemId, qty) => {

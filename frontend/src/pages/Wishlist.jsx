@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
 import { getUserId } from "../services/auth";
+import { useToast } from "../context/ToastContext";
 
 function Wishlist() {
   const [wishlistItems, setWishlistItems] = useState([]);
@@ -10,6 +11,7 @@ function Wishlist() {
   const [error, setError] = useState(null);
   const [cartStates, setCartStates] = useState({});
   const navigate = useNavigate();
+  const { show } = useToast();
 
   useEffect(() => { fetchWishlist(); }, []);
 
@@ -34,6 +36,7 @@ function Wishlist() {
   const removeItem = async (wishlistId) => {
     await api.delete(`/wishlist/remove/${wishlistId}`).catch(console.error);
     setWishlistItems(prev => prev.filter(i => i.wishlist_id !== wishlistId));
+    show("Item removed from Wish List", "info");
   };
 
   const addToCart = async (productId, wishlistId) => {
@@ -44,11 +47,13 @@ function Wishlist() {
       await api.post("/cart/add", { user_id: userId, product_id: productId, quantity: 1 });
       await api.delete(`/wishlist/remove/${wishlistId}`);
       setCartStates(s => ({ ...s, [wishlistId]: "added" }));
+      show("Moved to cart!", "cart");
       setTimeout(() => {
         setWishlistItems(prev => prev.filter(i => i.wishlist_id !== wishlistId));
       }, 600);
     } catch (e) {
       console.error(e);
+      show("Failed to move to cart", "error");
       setCartStates(s => ({ ...s, [wishlistId]: "idle" }));
     }
   };
