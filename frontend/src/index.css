@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Amazon+Ember:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -5,5 +7,18 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'DM Sans', 'Amazon Ember', Arial, sans-serif;
+  background: #f0f2f2;
+  color: #0F1111;
+  -webkit-font-smoothing: antialiased;
 }
+
+a { text-decoration: none; }
+button { font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f0f2f2; }
+::-webkit-scrollbar-thumb { background: #c8caca; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9e9e9e; }

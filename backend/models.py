@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, DateTime
+from sqlalchemy.sql import func
 from database import Base
 
 
@@ -27,6 +28,11 @@ class Product(Base):
     price = Column(Float)
     stock = Column(Integer)
     image_url = Column(String)
+    rating = Column(Float, default=4.5)
+    reviews = Column(Integer, default=100)
+    is_best_seller = Column(Boolean, default=False)
+    original_price = Column(Float)
+    discount_percent = Column(Integer)
 
     category_id = Column(
         Integer,
@@ -65,23 +71,13 @@ class CartItem(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id")
-    )
-
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
     total_amount = Column(Float)
-
-    status = Column(
-        String,
-        default="Placed"
-    )
+    status = Column(String, default="Placed")
+    created_at = Column(DateTime, server_default=func.now(), nullable=True)
+    delivery_address = Column(String, nullable=True)
+    payment_method = Column(String, default="COD", nullable=True)
 
 
 class OrderItem(Base):
@@ -106,3 +102,46 @@ class OrderItem(Base):
     quantity = Column(Integer)
 
     price = Column(Float)
+
+class Address(Base):
+    __tablename__ = "addresses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    full_name = Column(String)
+    phone = Column(String)
+    line1 = Column(String)
+    line2 = Column(String, nullable=True)
+    city = Column(String)
+    state = Column(String)
+    pincode = Column(String)
+    is_default = Column(Boolean, default=False)
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    rating = Column(Integer)
+    title = Column(String)
+    body = Column(String)
+    helpful_count = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now(), nullable=True)
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlist"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    product_id = Column(
+        Integer,
+        ForeignKey("products.id")
+    )
