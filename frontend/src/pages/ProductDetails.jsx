@@ -18,6 +18,15 @@ function Stars({ rating = 4.5, reviews = 0 }) {
   );
 }
 
+const GALLERY_VIEWS = [
+  { label: "Front",   transform: "scale(1)",                      filter: "none" },
+  { label: "Back",    transform: "scaleX(-1)",                    filter: "brightness(0.96) contrast(1.03)" },
+  { label: "Left",    transform: "scale(1.18) translateX(-10%)",  filter: "none" },
+  { label: "Right",   transform: "scale(1.18) translateX(10%)",   filter: "brightness(1.02)" },
+  { label: "Detail",  transform: "scale(1.65) translateY(12%)",   filter: "brightness(1.06) contrast(1.06)" },
+  { label: "In Box",  transform: "scale(0.78)",                   filter: "sepia(0.12) brightness(0.91)" },
+];
+
 function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -40,6 +49,9 @@ function ProductDetails() {
   const [pincodeResult, setPincodeResult] = useState(null);
   const [pincodeChecking, setPincodeChecking] = useState(false);
 
+  // Gallery
+  const [selectedView, setSelectedView] = useState(0);
+
   // Image zoom
   const [zoom, setZoom] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -51,6 +63,8 @@ function ProductDetails() {
     setQuantity(1);
     setCartState("idle");
     setBuyingNow(false);
+    setSelectedView(0);
+    setZoom(false);
     setReviews([]);
     setReviewSubmitted(false);
     setShowReviewForm(false);
@@ -234,51 +248,154 @@ function ProductDetails() {
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 280px", gap: "24px", alignItems: "start" }}>
 
             {/* Col 1: Image gallery */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center" }}>
-              {/* Thumbnail strip */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div className="pd-tab-img active" style={{ width: "58px", height: "58px", padding: "4px", background: "white", border: "2px solid #FF9900", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={product.image_url} alt="thumb" style={{ width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply" }} />
+            <div>
+
+              {/* Thumbnail strip + main image side by side */}
+              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+
+                {/* Vertical thumbnail strip */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "7px", width: "66px" }}>
+                  {GALLERY_VIEWS.map((view, i) => (
+                    <div
+                      key={i}
+                      onClick={() => { setSelectedView(i); setZoom(false); }}
+                      style={{
+                        width: "64px", height: "64px",
+                        border: `2px solid ${selectedView === i ? "#FF9900" : "#d5d9d9"}`,
+                        borderRadius: "6px", background: "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", overflow: "hidden", padding: "5px",
+                        boxSizing: "border-box", transition: "border-color 0.15s",
+                        position: "relative", flexShrink: 0,
+                      }}
+                      onMouseEnter={e => { if (selectedView !== i) e.currentTarget.style.borderColor = "#FF9900"; }}
+                      onMouseLeave={e => { if (selectedView !== i) e.currentTarget.style.borderColor = "#d5d9d9"; }}
+                    >
+                      <img
+                        src={product.image_url}
+                        alt={view.label}
+                        style={{
+                          width: "100%", height: "100%", objectFit: "contain",
+                          mixBlendMode: "multiply",
+                          transform: view.transform, filter: view.filter,
+                        }}
+                      />
+                      <div style={{
+                        position: "absolute", bottom: 0, left: 0, right: 0,
+                        background: selectedView === i ? "rgba(255,153,0,0.85)" : "rgba(0,0,0,0.45)",
+                        color: "white", fontSize: "8px", fontWeight: "800",
+                        textAlign: "center", padding: "2px 0", letterSpacing: "0.4px",
+                        textTransform: "uppercase",
+                      }}>
+                        {view.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Main image */}
+                <div
+                  ref={imageBoxRef}
+                  style={{
+                    width: "380px", height: "380px", background: "white",
+                    borderRadius: "8px", border: "1px solid #e8e8e8",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "20px", position: "relative", overflow: "hidden",
+                    cursor: "crosshair",
+                  }}
+                  onMouseEnter={() => setZoom(true)}
+                  onMouseLeave={() => setZoom(false)}
+                  onMouseMove={e => {
+                    const rect = imageBoxRef.current.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setZoomPos({ x, y });
+                  }}
+                >
+                  {/* Deal badge */}
+                  {discount >= 15 && (
+                    <div style={{ position: "absolute", top: "12px", left: "12px", background: "#CC0C39", color: "white", fontSize: "12px", fontWeight: "800", padding: "3px 9px", borderRadius: "4px", zIndex: 3 }}>
+                      Limited time deal
+                    </div>
+                  )}
+
+                  {/* View label */}
+                  <div style={{ position: "absolute", top: "10px", right: "10px", background: "rgba(0,0,0,0.55)", color: "white", fontSize: "10px", fontWeight: "800", padding: "3px 8px", borderRadius: "4px", zIndex: 3, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                    {GALLERY_VIEWS[selectedView].label} View
+                  </div>
+
+                  {/* Zoom tip */}
+                  {!zoom && (
+                    <div style={{ position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.45)", color: "white", fontSize: "10px", padding: "3px 10px", borderRadius: "10px", zIndex: 3, whiteSpace: "nowrap", pointerEvents: "none" }}>
+                      Hover to zoom
+                    </div>
+                  )}
+
+                  {/* Zoom overlay */}
+                  {zoom && (
+                    <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}>
+                      <div style={{
+                        width: "100%", height: "100%",
+                        backgroundImage: `url(${product.image_url})`,
+                        backgroundSize: "280%",
+                        backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                        backgroundRepeat: "no-repeat",
+                        mixBlendMode: "multiply",
+                        filter: GALLERY_VIEWS[selectedView].filter,
+                      }} />
+                    </div>
+                  )}
+
+                  {/* Main product image */}
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    style={{
+                      maxWidth: "100%", maxHeight: "100%", objectFit: "contain",
+                      mixBlendMode: "multiply",
+                      transform: GALLERY_VIEWS[selectedView].transform,
+                      filter: GALLERY_VIEWS[selectedView].filter,
+                      transition: "transform 0.35s ease, filter 0.35s ease, opacity 0.15s",
+                      opacity: zoom ? 0 : 1,
+                    }}
+                  />
+
+                  {/* Prev arrow */}
+                  <button
+                    onClick={e => { e.stopPropagation(); setSelectedView(v => (v - 1 + GALLERY_VIEWS.length) % GALLERY_VIEWS.length); setZoom(false); }}
+                    style={{ position: "absolute", left: "8px", top: "50%", transform: "translateY(-50%)", zIndex: 5, width: "32px", height: "32px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "1px solid #d5d9d9", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", color: "#0F1111" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "white"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.9)"}
+                  >‹</button>
+
+                  {/* Next arrow */}
+                  <button
+                    onClick={e => { e.stopPropagation(); setSelectedView(v => (v + 1) % GALLERY_VIEWS.length); setZoom(false); }}
+                    style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", zIndex: 5, width: "32px", height: "32px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "1px solid #d5d9d9", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", color: "#0F1111" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "white"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.9)"}
+                  >›</button>
                 </div>
               </div>
 
-              {/* Large main image with zoom */}
-              <div
-                ref={imageBoxRef}
-                style={{ width: "340px", height: "340px", background: "white", borderRadius: "8px", border: "1px solid #e8e8e8", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative", overflow: "hidden", cursor: zoom ? "zoom-in" : "crosshair" }}
-                onMouseEnter={() => setZoom(true)}
-                onMouseLeave={() => setZoom(false)}
-                onMouseMove={e => {
-                  const rect = imageBoxRef.current.getBoundingClientRect();
-                  const x = ((e.clientX - rect.left) / rect.width) * 100;
-                  const y = ((e.clientY - rect.top) / rect.height) * 100;
-                  setZoomPos({ x, y });
-                }}
-              >
-                {discount >= 15 && (
-                  <div style={{ position: "absolute", top: "12px", left: "12px", background: "#CC0C39", color: "white", fontSize: "13px", fontWeight: "800", padding: "4px 10px", borderRadius: "4px", zIndex: 2 }}>
-                    Limited time deal
-                  </div>
-                )}
-                {zoom && (
-                  <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}>
-                    <div style={{ width: "100%", height: "100%", backgroundImage: `url(${product.image_url})`, backgroundSize: "220%", backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`, backgroundRepeat: "no-repeat", mixBlendMode: "multiply" }} />
-                  </div>
-                )}
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", mixBlendMode: "multiply", transition: "opacity 0.15s", opacity: zoom ? 0 : 1 }}
-                />
+              {/* Dot indicator strip */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", marginLeft: "76px" }}>
+                {GALLERY_VIEWS.map((_, i) => (
+                  <div
+                    key={i}
+                    onClick={() => { setSelectedView(i); setZoom(false); }}
+                    style={{ width: i === selectedView ? "22px" : "8px", height: "8px", borderRadius: "4px", background: i === selectedView ? "#FF9900" : "#d5d9d9", cursor: "pointer", transition: "all 0.25s ease" }}
+                  />
+                ))}
               </div>
 
-              {/* Add to cart below image (quick) */}
-              <div style={{ width: "340px", display: "flex", gap: "8px", marginTop: "8px" }}>
+              {/* Add to cart below gallery */}
+              <div style={{ marginTop: "14px", marginLeft: "76px", width: "380px" }}>
                 <button
                   onClick={addToCart}
-                  style={{ ...cartBtnStyle, flex: 1, background: cartState === "added" ? "#067D62" : "#FFD814", borderColor: cartState === "added" ? "#067D62" : "#FCD200", color: cartState === "added" ? "white" : "#0F1111" }}
+                  style={{ ...cartBtnStyle, width: "100%", background: cartState === "added" ? "#067D62" : "#FFD814", borderColor: cartState === "added" ? "#067D62" : "#FCD200", color: cartState === "added" ? "white" : "#0F1111" }}
                 >
-                  {cartState === "adding" ? "Adding…" : cartState === "added" ? "✓ Added" : "Add to Cart"}
+                  {cartState === "adding" ? "Adding…" : cartState === "added" ? "✓ Added to Cart" : "Add to Cart"}
                 </button>
               </div>
             </div>
