@@ -8,6 +8,7 @@ import ProductDetails from "./pages/ProductDetails";
 import Wishlist from "./pages/Wishlist";
 import Checkout from "./pages/Checkout";
 import Account from "./pages/Account";
+import Admin from "./pages/Admin";
 import Chatbot from "./components/Chatbot";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
         <Chatbot />
       </ToastProvider>
