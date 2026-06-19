@@ -13,13 +13,13 @@ router = APIRouter(
 )
 
 
-def serialize_product(product, db):
+def serialize_product(product, db, include_images=False):
     category = (
         db.query(models.Category)
         .filter(models.Category.id == product.category_id)
         .first()
     )
-    return {
+    data = {
         "id": product.id,
         "name": product.name,
         "description": product.description,
@@ -34,6 +34,15 @@ def serialize_product(product, db):
         "rating": product.rating or 4.5,
         "reviews": product.reviews or 100,
     }
+    if include_images:
+        imgs = (
+            db.query(models.ProductImage)
+            .filter(models.ProductImage.product_id == product.id)
+            .order_by(models.ProductImage.sort_order)
+            .all()
+        )
+        data["images"] = [i.image_url for i in imgs] if imgs else [product.image_url]
+    return data
 
 
 @router.post("/")
@@ -120,4 +129,4 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
         return {"message": "Product not found"}
-    return serialize_product(product, db)
+    return serialize_product(product, db, include_images=True)
