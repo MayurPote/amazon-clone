@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -130,3 +130,15 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     if not product:
         return {"message": "Product not found"}
     return serialize_product(product, db, include_images=True)
+
+
+@router.put("/{product_id}")
+def update_product(product_id: int, body: schemas.ProductUpdate, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
+    db.commit()
+    db.refresh(product)
+    return serialize_product(product, db)

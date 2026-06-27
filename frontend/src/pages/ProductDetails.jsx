@@ -41,6 +41,13 @@ function ProductDetails() {
   const [pincodeResult, setPincodeResult] = useState(null);
   const [pincodeChecking, setPincodeChecking] = useState(false);
 
+  // Price tracker
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [buyScore, setBuyScore] = useState(null);
+  const [alertTarget, setAlertTarget] = useState("");
+  const [alertState, setAlertState] = useState("idle"); // idle | saving | saved
+  const [existingAlert, setExistingAlert] = useState(null);
+
   // Gallery — images come from the API (product.images[])
   const [selectedView, setSelectedView] = useState(0);
 
@@ -62,9 +69,14 @@ function ProductDetails() {
     setShowReviewForm(false);
     setPincode("");
     setPincodeResult(null);
+    setPriceHistory([]);
+    setBuyScore(null);
+    setAlertState("idle");
+    setExistingAlert(null);
     fetchProduct();
     fetchRelated();
     fetchReviews();
+    fetchPriceHistory();
     window.scrollTo(0, 0);
   }, [id]);
 
@@ -80,6 +92,30 @@ function ProductDetails() {
         const updated = [res.data, ...filtered].slice(0, 8);
         localStorage.setItem(key, JSON.stringify(updated));
       } catch {}
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchPriceHistory = async () => {
+    try {
+      const res = await api.get(`/price-tracker/history/${id}`);
+      const history = res.data;
+      setPriceHistory(history);
+      if (history.length > 0) {
+        const prices = history.map(h => h.price);
+        const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const min90 = Math.min(...prices);
+        const max90 = Math.max(...prices);
+        setBuyScore({ avg, min90, max90 });
+      }
+      // Check if user has an alert for this product
+      const userId = getUserId();
+      if (userId) {
+        try {
+          const ar = await api.get(`/price-tracker/alerts/${userId}`);
+          const found = ar.data.find(a => a.product_id === Number(id));
+          if (found) { setExistingAlert(found); setAlertTarget(String(found.target_price)); }
+        } catch {}
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -175,6 +211,29 @@ function ProductDetails() {
       console.error(e);
       show("Failed to add to Wish List", "error");
     }
+  };
+
+  const saveAlert = async () => {
+    const userId = getUserId();
+    if (!userId) { navigate("/login"); return; }
+    const target = parseFloat(alertTarget);
+    if (!target || target <= 0) return;
+    setAlertState("saving");
+    try {
+      const res = await api.post("/price-tracker/alerts/", { user_id: userId, product_id: Number(id), target_price: target });
+      setAlertState("saved");
+      setExistingAlert({ id: res.data.id, target_price: target, product_id: Number(id) });
+    } catch (e) { console.error(e); setAlertState("idle"); }
+  };
+
+  const deleteAlert = async () => {
+    if (!existingAlert) return;
+    try {
+      await api.delete(`/price-tracker/alerts/${existingAlert.id}`);
+      setExistingAlert(null);
+      setAlertState("idle");
+      setAlertTarget("");
+    } catch (e) { console.error(e); }
   };
 
   if (!product) {
@@ -500,6 +559,31 @@ function ProductDetails() {
                 )}
               </div>
 
+              {/* Buy Timing Score */}
+              {buyScore && (() => {
+                const prices = priceHistory.map(h => h.price);
+                const below = prices.filter(p => p <= product.price).length;
+                const pct = (below / prices.length) * 100;
+                let label, color, bg, icon;
+                if (pct <= 15)      { label = "Excellent Deal"; color = "#067D62"; bg = "#e7f5ea"; icon = "🔥"; }
+                else if (pct <= 35) { label = "Good Deal";       color = "#007600"; bg = "#eafaea"; icon = "✓"; }
+                else if (pct <= 60) { label = "Fair Price";      color = "#CC7722"; bg = "#fdf3e0"; icon = "~"; }
+                else if (pct <= 80) { label = "Above Average";   color = "#C45500"; bg = "#fdf0e0"; icon = "↑"; }
+                else                { label = "High Price";      color = "#CC0C39"; bg = "#fde8e8"; icon = "⚠"; }
+                return (
+                  <div style={{ background: bg, border: `1px solid ${color}30`, borderRadius: "8px", padding: "8px 12px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px" }}>{icon}</span>
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: "800", color }}>{label}</div>
+                      <div style={{ fontSize: "11px", color: "#565959" }}>
+                        Cheaper than {Math.round(100 - pct)}% of prices in last 90 days
+                      </div>
+                    </div>
+                    <a href="#price-tracker" style={{ marginLeft: "auto", fontSize: "11px", color: "#007185", textDecoration: "none", whiteSpace: "nowrap" }}>View chart ↓</a>
+                  </div>
+                );
+              })()}
+
               {/* Delivery */}
               <div style={{ fontSize: "13px", marginBottom: "12px", lineHeight: "1.6" }}>
                 <div style={{ color: "#007600", fontWeight: "700" }}>
@@ -629,6 +713,204 @@ function ProductDetails() {
               </div>
             </div>
           )}
+
+          {/* ── Smart Price Tracker ── */}
+          {priceHistory.length > 0 && buyScore && (() => {
+            const prices = priceHistory.map(h => h.price);
+            const below = prices.filter(p => p <= product.price).length;
+            const pct = (below / prices.length) * 100;
+            let scoreLabel, scoreColor, scoreBg, scoreIcon, scoreMsg;
+            if (pct <= 15)      { scoreLabel = "Excellent Deal 🔥"; scoreColor = "#067D62"; scoreBg = "#e7f5ea"; scoreIcon = "🔥"; scoreMsg = "This is one of the lowest prices in the last 90 days!"; }
+            else if (pct <= 35) { scoreLabel = "Good Deal";         scoreColor = "#007600"; scoreBg = "#eafaea"; scoreIcon = "✓";  scoreMsg = "Price is below average — a solid time to buy."; }
+            else if (pct <= 60) { scoreLabel = "Fair Price";        scoreColor = "#CC7722"; scoreBg = "#fdf3e0"; scoreIcon = "~";  scoreMsg = "Price is near the average. No urgency either way."; }
+            else if (pct <= 80) { scoreLabel = "Above Average";     scoreColor = "#C45500"; scoreBg = "#fdf0e0"; scoreIcon = "↑";  scoreMsg = "Price is a bit high. Consider waiting for a deal."; }
+            else                { scoreLabel = "High Price";        scoreColor = "#CC0C39"; scoreBg = "#fde8e8"; scoreIcon = "⚠";  scoreMsg = "Near the 90-day high. Recommended to set an alert."; }
+
+            // SVG chart
+            const W = 800, H = 110, PL = 12, PR = 12, PT = 14, PB = 22;
+            const chartW = W - PL - PR, chartH = H - PT - PB;
+            const minP = Math.min(...prices) * 0.97;
+            const maxP = Math.max(...prices) * 1.03;
+            const toX = i => PL + (i / (prices.length - 1)) * chartW;
+            const toY = p => PT + (1 - (p - minP) / (maxP - minP)) * chartH;
+            const linePoints = prices.map((p, i) => `${toX(i)},${toY(p)}`).join(" ");
+            const areaPoints = `${toX(0)},${H - PB} ${linePoints} ${toX(prices.length - 1)},${H - PB}`;
+            const curY = toY(product.price);
+            const minY = toY(buyScore.min90);
+            const minX = toX(prices.indexOf(buyScore.min90));
+            const targetVal = existingAlert ? existingAlert.target_price : null;
+            const targetY = targetVal ? toY(targetVal) : null;
+
+            const fmt = n => `₹${Number(n).toLocaleString("en-IN")}`;
+
+            return (
+              <div id="price-tracker" style={{ marginTop: "32px", background: "white", borderRadius: "8px", padding: "28px 32px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "20px" }}>📈</span>
+                    <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0F1111", margin: 0 }}>Smart Price Tracker</h2>
+                    <span style={{ fontSize: "11px", background: "#232f3e", color: "#FF9900", padding: "2px 8px", borderRadius: "10px", fontWeight: "700", letterSpacing: "0.5px" }}>90-DAY HISTORY</span>
+                  </div>
+                  <a href="/price-alerts" style={{ fontSize: "13px", color: "#007185", textDecoration: "none", fontWeight: "600" }}>View all alerts →</a>
+                </div>
+
+                {/* Score + Stats row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                  <div style={{ background: scoreBg, border: `1.5px solid ${scoreColor}40`, borderRadius: "10px", padding: "14px 16px" }}>
+                    <div style={{ fontSize: "11px", color: "#565959", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>Buy Timing</div>
+                    <div style={{ fontSize: "15px", fontWeight: "800", color: scoreColor, marginBottom: "4px" }}>{scoreLabel}</div>
+                    <div style={{ fontSize: "11px", color: "#565959", lineHeight: "1.4" }}>{scoreMsg}</div>
+                  </div>
+                  <div style={{ background: "#f7f8f9", borderRadius: "10px", padding: "14px 16px", border: "1px solid #e8e8e8" }}>
+                    <div style={{ fontSize: "11px", color: "#565959", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>90-Day Low</div>
+                    <div style={{ fontSize: "18px", fontWeight: "800", color: "#067D62" }}>{fmt(buyScore.min90)}</div>
+                    <div style={{ fontSize: "11px", color: "#067D62" }}>↓ {Math.round(((product.price - buyScore.min90) / product.price) * 100)}% below current</div>
+                  </div>
+                  <div style={{ background: "#f7f8f9", borderRadius: "10px", padding: "14px 16px", border: "1px solid #e8e8e8" }}>
+                    <div style={{ fontSize: "11px", color: "#565959", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>90-Day Average</div>
+                    <div style={{ fontSize: "18px", fontWeight: "800", color: "#0F1111" }}>{fmt(Math.round(buyScore.avg))}</div>
+                    <div style={{ fontSize: "11px", color: product.price <= buyScore.avg ? "#067D62" : "#CC0C39" }}>
+                      {product.price <= buyScore.avg ? `↓ ${Math.round(((buyScore.avg - product.price) / buyScore.avg) * 100)}% below avg` : `↑ ${Math.round(((product.price - buyScore.avg) / buyScore.avg) * 100)}% above avg`}
+                    </div>
+                  </div>
+                  <div style={{ background: "#f7f8f9", borderRadius: "10px", padding: "14px 16px", border: "1px solid #e8e8e8" }}>
+                    <div style={{ fontSize: "11px", color: "#565959", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>90-Day High</div>
+                    <div style={{ fontSize: "18px", fontWeight: "800", color: "#CC0C39" }}>{fmt(buyScore.max90)}</div>
+                    <div style={{ fontSize: "11px", color: "#565959" }}>Current is {Math.round(((buyScore.max90 - product.price) / buyScore.max90) * 100)}% below peak</div>
+                  </div>
+                </div>
+
+                {/* SVG Chart */}
+                <div style={{ background: "#f9f9fb", borderRadius: "10px", padding: "16px 16px 8px", marginBottom: "20px", border: "1px solid #ebebeb" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "11px", color: "#565959" }}>90 days ago</span>
+                    <span style={{ fontSize: "11px", color: "#565959" }}>45 days ago</span>
+                    <span style={{ fontSize: "11px", color: "#007185", fontWeight: "700" }}>Today · {fmt(product.price)}</span>
+                  </div>
+                  <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", overflow: "visible", display: "block" }}>
+                    <defs>
+                      <linearGradient id="ptGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FF9900" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#FF9900" stopOpacity="0.02" />
+                      </linearGradient>
+                      <linearGradient id="ptGradGreen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#007185" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="#007185" stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Area fill */}
+                    <polygon points={areaPoints} fill="url(#ptGrad)" />
+
+                    {/* Line */}
+                    <polyline points={linePoints} fill="none" stroke="#FF9900" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+                    {/* Average line */}
+                    <line x1={PL} y1={toY(buyScore.avg)} x2={W - PR} y2={toY(buyScore.avg)} stroke="#888" strokeWidth="1" strokeDasharray="3 4" />
+                    <text x={W - PR + 4} y={toY(buyScore.avg) + 4} fontSize="9" fill="#888">avg</text>
+
+                    {/* Target price line */}
+                    {targetY && targetVal < maxP && targetVal > minP && (
+                      <>
+                        <line x1={PL} y1={targetY} x2={W - PR} y2={targetY} stroke="#007185" strokeWidth="1.5" strokeDasharray="5 4" />
+                        <text x={W - PR + 4} y={targetY + 4} fontSize="9" fill="#007185">target</text>
+                      </>
+                    )}
+
+                    {/* 90-day low dot */}
+                    <circle cx={minX} cy={minY} r={5} fill="#067D62" stroke="white" strokeWidth="2" />
+                    <text x={minX} y={minY - 9} fontSize="9" fill="#067D62" textAnchor="middle">Low</text>
+
+                    {/* Current price dot */}
+                    <circle cx={toX(prices.length - 1)} cy={curY} r={6} fill="#FF9900" stroke="white" strokeWidth="2.5" />
+                  </svg>
+
+                  <div style={{ display: "flex", gap: "20px", marginTop: "8px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ width: "12px", height: "3px", background: "#FF9900", borderRadius: "2px" }} />
+                      <span style={{ fontSize: "11px", color: "#565959" }}>Price history</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ width: "12px", height: "2px", background: "#888", borderRadius: "2px", borderTop: "1px dashed #888" }} />
+                      <span style={{ fontSize: "11px", color: "#565959" }}>90-day average</span>
+                    </div>
+                    {targetVal && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ width: "12px", height: "2px", background: "#007185", borderRadius: "2px", borderTop: "1px dashed #007185" }} />
+                        <span style={{ fontSize: "11px", color: "#565959" }}>Your target</span>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ width: "10px", height: "10px", background: "#067D62", borderRadius: "50%", border: "2px solid white", boxShadow: "0 0 0 1px #067D62" }} />
+                      <span style={{ fontSize: "11px", color: "#565959" }}>90-day low</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Alert form */}
+                <div style={{ background: existingAlert ? "#e7f5ea" : "#f0f7ff", borderRadius: "10px", padding: "16px 20px", border: `1px solid ${existingAlert ? "#067D62" : "#007185"}30` }}>
+                  {existingAlert ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "18px" }}>🔔</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#067D62", marginBottom: "2px" }}>
+                          Price Alert Active — Target: {fmt(existingAlert.target_price)}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#565959" }}>
+                          {product.price <= existingAlert.target_price
+                            ? "✓ Your target is already reached! Click Buy Now above."
+                            : `Needs to drop ${fmt(product.price - existingAlert.target_price)} more (${Math.round(((product.price - existingAlert.target_price) / product.price) * 100)}%).`}
+                        </div>
+                      </div>
+                      <button
+                        onClick={deleteAlert}
+                        style={{ padding: "8px 16px", background: "white", border: "1px solid #d5d9d9", borderRadius: "20px", fontSize: "13px", cursor: "pointer", color: "#CC0C39", fontWeight: "600", flexShrink: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = "#CC0C39"}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = "#d5d9d9"}
+                      >
+                        Remove Alert
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#0F1111", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span>🔔</span> Set a Price Alert — Be notified when price drops
+                      </div>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", border: "1.5px solid #007185", borderRadius: "8px", overflow: "hidden", background: "white" }}>
+                          <span style={{ padding: "0 10px", color: "#565959", fontSize: "15px", background: "#f7f8f9", borderRight: "1px solid #e8e8e8", lineHeight: "38px" }}>₹</span>
+                          <input
+                            type="number"
+                            placeholder={`e.g. ${Math.round(buyScore.min90)}`}
+                            value={alertTarget}
+                            onChange={e => setAlertTarget(e.target.value)}
+                            style={{ width: "120px", padding: "8px 12px", border: "none", outline: "none", fontSize: "15px", fontFamily: "inherit" }}
+                          />
+                        </div>
+                        <button
+                          onClick={saveAlert}
+                          disabled={alertState === "saving" || !alertTarget}
+                          style={{ padding: "10px 22px", background: alertState === "saved" ? "#067D62" : "#FFD814", border: "none", borderRadius: "20px", fontSize: "14px", fontWeight: "700", cursor: "pointer", color: alertState === "saved" ? "white" : "#0F1111", transition: "all 0.2s" }}
+                        >
+                          {alertState === "saving" ? "Saving…" : alertState === "saved" ? "✓ Alert Set!" : "Set Alert"}
+                        </button>
+                        <button
+                          onClick={() => setAlertTarget(String(Math.round(buyScore.min90)))}
+                          style={{ padding: "10px 16px", background: "white", border: "1px solid #007185", borderRadius: "20px", fontSize: "13px", cursor: "pointer", color: "#007185", fontWeight: "600" }}
+                          title="Use 90-day lowest price as target"
+                        >
+                          Use 90-day low ({fmt(buyScore.min90)})
+                        </button>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#565959", marginTop: "8px" }}>
+                        Suggested alert: {fmt(Math.round(buyScore.avg * 0.9))} (10% below average) · You can check all your alerts at <a href="/price-alerts" style={{ color: "#007185" }}>Price Alerts</a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Customer Reviews */}
           <div style={{ marginTop: "32px", background: "white", borderRadius: "8px", padding: "28px 32px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>

@@ -9,6 +9,7 @@ import Wishlist from "./pages/Wishlist";
 import Checkout from "./pages/Checkout";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
+import PriceAlerts from "./pages/PriceAlerts";
 import Chatbot from "./components/Chatbot";
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/price-alerts" element={<PriceAlerts />} />
         </Routes>
         <Chatbot />
       </ToastProvider>

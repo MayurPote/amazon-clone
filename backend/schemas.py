@@ -78,6 +78,18 @@ class AddressCreate(BaseModel):
     pincode: str
 
 
+class ProductUpdate(BaseModel):
+    name: str = None
+    description: str = None
+    price: float = None
+    stock: int = None
+    original_price: float = None
+    discount_percent: int = None
+    is_best_seller: bool = None
+    rating: float = None
+    image_url: str = None
+
+
 class WishlistCreate(BaseModel):
     user_id: int
     product_id: int

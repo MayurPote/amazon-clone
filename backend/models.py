@@ -140,6 +140,26 @@ class ProductImage(Base):
     sort_order = Column(Integer, default=0)
 
 
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    price = Column(Float)
+    recorded_at = Column(DateTime, nullable=False)
+
+
+class PriceAlert(Base):
+    __tablename__ = "price_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    target_price = Column(Float)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Wishlist(Base):
     __tablename__ = "wishlist"
 

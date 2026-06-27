@@ -19,6 +19,7 @@ function Navbar() {
   const activeCat = searchParams.get("category") || "";
   const token = localStorage.getItem("token");
   const [cartCount, setCartCount] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCat, setSearchCat] = useState("All");
   const [suggestions, setSuggestions] = useState([]);
@@ -59,7 +60,7 @@ function Navbar() {
   }, []);
 
   useEffect(() => {
-    if (token) fetchCartCount();
+    if (token) { fetchCartCount(); fetchAlertCount(); }
   }, []);
 
   const fetchCartCount = async () => {
@@ -69,6 +70,13 @@ function Navbar() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const fetchAlertCount = async () => {
+    try {
+      const res = await api.get(`/price-tracker/check/${getUserId()}`);
+      setAlertCount(res.data.length);
+    } catch {}
   };
 
   const logout = () => {
@@ -191,6 +199,30 @@ function Navbar() {
           <span className="sub">Returns</span>
           <span className="main">&amp; Orders</span>
         </Link>
+
+        {/* Price Alerts bell */}
+        {token && (
+          <Link
+            to="/price-alerts"
+            style={{ textDecoration: "none", flexShrink: 0, display: "flex", alignItems: "center", gap: "4px", padding: "5px 9px", border: "1px solid transparent", borderRadius: "3px", transition: "border-color 0.15s", position: "relative" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}
+            title="Price Alerts"
+          >
+            <div style={{ position: "relative" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              {alertCount > 0 && (
+                <span style={{ position: "absolute", top: "-6px", right: "-8px", background: "#CC0C39", color: "white", fontSize: "10px", fontWeight: "900", minWidth: "17px", height: "17px", borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                  {alertCount > 9 ? "9+" : alertCount}
+                </span>
+              )}
+            </div>
+            <span style={{ color: "white", fontSize: "13px", fontWeight: "700" }}>Alerts</span>
+          </Link>
+        )}
 
         {/* Cart */}
         <Link

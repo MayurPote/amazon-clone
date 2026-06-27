@@ -9,6 +9,7 @@ from routers import wishlist
 from routers import reviews
 from routers import addresses
 from routers import product_images
+from routers import price_tracker
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
@@ -41,6 +42,7 @@ app.include_router(wishlist.router)
 app.include_router(reviews.router)
 app.include_router(addresses.router)
 app.include_router(product_images.router)
+app.include_router(price_tracker.router)
 
 @app.get("/")
 def home():
