@@ -13,52 +13,41 @@ router = APIRouter(
 
 
 @router.post("/add")
-def add_to_cart(
-    data: schemas.AddToCart,
-    db: Session = Depends(get_db)
-):
-
-    cart = (
-        db.query(models.Cart)
-        .filter(models.Cart.user_id == data.user_id)
-        .first()
-    )
-
+def add_to_cart(data: schemas.AddToCart, db: Session = Depends(get_db)):
+    cart = db.query(models.Cart).filter(models.Cart.user_id == data.user_id).first()
     if not cart:
-        cart = models.Cart(
-            user_id=data.user_id
-        )
-
+        cart = models.Cart(user_id=data.user_id)
         db.add(cart)
         db.commit()
         db.refresh(cart)
+
+    # Merge duplicate: increment quantity if product already in cart
+    existing = (
+        db.query(models.CartItem)
+        .filter(
+            models.CartItem.cart_id == cart.id,
+            models.CartItem.product_id == data.product_id
+        )
+        .first()
+    )
+    if existing:
+        existing.quantity += data.quantity
+        db.commit()
+        return {"message": "Quantity updated in cart"}
 
     cart_item = models.CartItem(
         cart_id=cart.id,
         product_id=data.product_id,
         quantity=data.quantity
     )
-
     db.add(cart_item)
     db.commit()
-
-    return {
-        "message": "Product added to cart"
-    }
+    return {"message": "Product added to cart"}
 
 
 @router.get("/{user_id}")
-def view_cart(
-    user_id: int,
-    db: Session = Depends(get_db)
-):
-
-    cart = (
-        db.query(models.Cart)
-        .filter(models.Cart.user_id == user_id)
-        .first()
-    )
-
+def view_cart(user_id: int, db: Session = Depends(get_db)):
+    cart = db.query(models.Cart).filter(models.Cart.user_id == user_id).first()
     if not cart:
         return []
 
@@ -69,74 +58,38 @@ def view_cart(
     )
 
     result = []
-
     for item in cart_items:
-
-        product = (
-            db.query(models.Product)
-            .filter(models.Product.id == item.product_id)
-            .first()
-        )
-
-        result.append({
-            "cart_item_id": item.id,
-            "product_id": product.id,
-            "product_name": product.name,
-            "price": product.price,
-            "quantity": item.quantity
-        })
-
+        product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
+        if product:
+            result.append({
+                "cart_item_id": item.id,
+                "product_id": product.id,
+                "product_name": product.name,
+                "price": product.price,
+                "original_price": product.original_price,
+                "discount_percent": product.discount_percent or 0,
+                "image_url": product.image_url,
+                "quantity": item.quantity,
+                "stock": product.stock,
+            })
     return result
 
 
 @router.put("/update")
-def update_cart_item(
-    data: schemas.UpdateCartItem,
-    db: Session = Depends(get_db)
-):
-
-    item = (
-        db.query(models.CartItem)
-        .filter(models.CartItem.id == data.cart_item_id)
-        .first()
-    )
-
+def update_cart_item(data: schemas.UpdateCartItem, db: Session = Depends(get_db)):
+    item = db.query(models.CartItem).filter(models.CartItem.id == data.cart_item_id).first()
     if not item:
-        raise HTTPException(
-            status_code=404,
-            detail="Item not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Item not found")
     item.quantity = data.quantity
-
     db.commit()
-
-    return {
-        "message": "Quantity updated"
-    }
+    return {"message": "Quantity updated"}
 
 
 @router.delete("/remove/{item_id}")
-def remove_item(
-    item_id: int,
-    db: Session = Depends(get_db)
-):
-
-    item = (
-        db.query(models.CartItem)
-        .filter(models.CartItem.id == item_id)
-        .first()
-    )
-
+def remove_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(models.CartItem).filter(models.CartItem.id == item_id).first()
     if not item:
-        raise HTTPException(
-            status_code=404,
-            detail="Item not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Item not found")
     db.delete(item)
     db.commit()
-
-    return {
-        "message": "Item removed"
-    }
+    return {"message": "Item removed"}
